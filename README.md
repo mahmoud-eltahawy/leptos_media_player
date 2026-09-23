@@ -30,7 +30,7 @@ edit-mode for renaming / deleting / reordering, and keyboard shortcuts.
 
 ```toml
 [dependencies]
-leptos_media_player = { path = "../leptos_media_player" }
+leptos_media_player = { git = "https://github.com/mahmoud_eltahawy/leptos_media_player.git" }
 # or, once published:
 # leptos_media_player = "0.1"
 ```
