@@ -21,10 +21,10 @@ pub fn WatchPage(
     #[prop(into)] edit_mode: Signal<bool>,
     #[prop(default = false)] audio: bool,
     #[prop(default = None)] artwork: Option<String>,
-    #[prop(default = None)] playlist_title: Option<String>,
-    #[prop(default = None)] on_rename: Option<Callback<(u64, String)>>,
-    #[prop(default = None)] on_delete: Option<Callback<u64>>,
-    #[prop(default = None)] on_move: Option<Callback<(u64, bool)>>,
+    #[prop(optional)] playlist_title: Option<String>,
+    #[prop(optional)] on_rename: Option<Callback<(u64, String)>>,
+    #[prop(optional)] on_delete: Option<Callback<u64>>,
+    #[prop(optional)] on_move: Option<Callback<(u64, bool)>>,
     #[prop(default = true)] show_download: bool,
 ) -> impl IntoView {
     let show_playlist = Signal::derive(move || items.get().len() > 1);

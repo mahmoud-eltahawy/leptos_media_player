@@ -26,6 +26,39 @@
     --lmp-radius-xs: 0.25rem;
 }
 
+/* ─── Watch page layout ─────────────────────────────────────────────────── */
+/* The container that composes MediaPlayer + Playlist. Stacks vertically on
+   phones; side-by-side from 768px up (tablet landscape, laptop, desktop). */
+
+.lmp-watch {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--lmp-text);
+}
+
+.lmp-watch-main {
+    /* Player column: fills whatever's left of the row and refuses to blow
+       out of the flex container. `min-width: 0` is the classic fix that
+       lets a flex child shrink below its intrinsic content size. */
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .lmp-watch {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    .lmp-watch-main {
+        width: auto;
+    }
+}
+
 /* ─── Media player ─────────────────────────────────────────────────────── */
 
 .lmp-player {
@@ -177,13 +210,18 @@
 .lmp-icon--lg { width: 1.5rem; height: 1.5rem; }
 
 /* ─── Playlist ─────────────────────────────────────────────────────────── */
+/* Full-width while stacked; fixed-width sidebar once the watch layout goes
+   side-by-side at 768px. The width steps up as the viewport grows so the
+   player always has room. */
 
 .lmp-playlist {
     width: 100%;
     flex-shrink: 0;
+    box-sizing: border-box;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--lmp-text);
 }
+@media (min-width: 768px)  { .lmp-playlist { width: 18rem; } }
 @media (min-width: 1024px) { .lmp-playlist { width: 20rem; } }
 @media (min-width: 1280px) { .lmp-playlist { width: 24rem; } }
 
@@ -199,7 +237,7 @@
     max-height: 60vh;
     color: var(--lmp-text);
 }
-@media (min-width: 1024px) { .lmp-playlist-panel { max-height: 500px; } }
+@media (min-width: 768px) { .lmp-playlist-panel { max-height: 500px; } }
 
 .lmp-playlist-header {
     padding: 0.75rem 1rem;
