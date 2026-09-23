@@ -12,11 +12,22 @@
 //! | [`WatchPage`]   | A convenience wrapper that lays the two out YouTube-style: player on the left, playlist on the right. Stacks vertically on phones. |
 //! | [`MediaItem`]   | The playlist entry type: `id`, `title`, optional `subtitle`, `src`, optional `artwork`.                                        |
 //!
-//! The three components are independent — use [`WatchPage`] when you want the
-//! default composition, or wire [`MediaPlayer`] and [`Playlist`] together
-//! yourself when you need a different layout (playlist above the player,
-//! playlist in a modal, two players, …). They coordinate only through the
-//! `items` and `current_idx` signals you hand them.
+//! ## Choosing between `WatchPage` and the primitives
+//!
+//! [`MediaPlayer`] and [`Playlist`] are **primitives**: they take the playlist
+//! cursor as a shared `RwSignal<usize>` and let you compose them however you
+//! like — side by side, one above the other, two players sharing one list,
+//! inside a modal, wired to a URL, wired to `localStorage`, etc. They know
+//! nothing about each other.
+//!
+//! [`WatchPage`] is a **convenience composition**. It owns the cursor (you
+//! pass `initial_idx`, it creates the signal internally), lays the two
+//! children out in the default YouTube-style arrangement, and hides the
+//! playlist when there's only one item.
+//!
+//! Reach for [`WatchPage`] when you want the default experience. Drop to
+//! [`MediaPlayer`] + [`Playlist`] when you need to own or observe the cursor,
+//! or when the layout isn't the default.
 //!
 //! ## Styling
 //!
@@ -43,6 +54,9 @@
 //!
 //! ### Video playlist
 //!
+//! The common case: hand `WatchPage` the items and an edit-mode signal, and
+//! it does the rest. The cursor starts at index `0` by default.
+//!
 //! ```rust,no_run
 //! use leptos::prelude::*;
 //! use leptos_media_player::{MediaItem, WatchPage};
@@ -57,27 +71,22 @@
 //!         MediaItem::new(3, "Tears of Steel", "/media/tos.mp4")
 //!             .with_subtitle("2012 · 12:14"),
 //!     ]);
-//!     let current_idx = RwSignal::new(0usize);
-//!     let edit_mode   = RwSignal::new(false);
-//!
+//!     let edit_mode = RwSignal::new(false);
 //!     let items_sig = Signal::derive(move || items.get());
 //!
 //!     view! {
 //!         <WatchPage
 //!             items=items_sig
-//!             current_idx=current_idx
 //!             edit_mode=edit_mode
 //!         />
 //!     }
 //! }
 //! ```
 //!
-//! ### Audio with a default artwork
+//! ### Starting on a specific item
 //!
-//! Set `audio = true` and pass a default `artwork` image URL. Each
-//! [`MediaItem`] can also carry its own `artwork`, which wins over the
-//! component-level fallback. `artwork` is `#[prop(into)]`, so a bare `String`
-//! is accepted as well as `Some(...)`.
+//! Pass `initial_idx` to open on a track other than the first. It's clamped
+//! to the last valid index, so out-of-range values are safe.
 //!
 //! ```rust,no_run
 //! # use leptos::prelude::*;
@@ -85,13 +94,35 @@
 //! # #[component]
 //! # fn App() -> impl IntoView {
 //! # let items = RwSignal::new(Vec::<MediaItem>::new());
-//! # let current_idx = RwSignal::new(0usize);
 //! # let edit_mode = RwSignal::new(false);
 //! # let items_sig = Signal::derive(move || items.get());
 //! view! {
 //!     <WatchPage
 //!         items=items_sig
-//!         current_idx=current_idx
+//!         initial_idx=2
+//!         edit_mode=edit_mode
+//!     />
+//! }
+//! # }
+//! ```
+//!
+//! ### Audio with a default artwork
+//!
+//! Set `audio = true` and pass a default `artwork` image URL. Each
+//! [`MediaItem`] can also carry its own `artwork`, which wins over the
+//! component-level fallback.
+//!
+//! ```rust,no_run
+//! # use leptos::prelude::*;
+//! # use leptos_media_player::{MediaItem, WatchPage};
+//! # #[component]
+//! # fn App() -> impl IntoView {
+//! # let items = RwSignal::new(Vec::<MediaItem>::new());
+//! # let edit_mode = RwSignal::new(false);
+//! # let items_sig = Signal::derive(move || items.get());
+//! view! {
+//!     <WatchPage
+//!         items=items_sig
 //!         edit_mode=edit_mode
 //!         audio=true
 //!         artwork=Some("/covers/default.jpg".to_string())
@@ -116,8 +147,7 @@
 //!     MediaItem::new(1, "One", "/1.mp4"),
 //!     MediaItem::new(2, "Two", "/2.mp4"),
 //! ]);
-//! let current_idx = RwSignal::new(0usize);
-//! let edit_mode   = RwSignal::new(true);
+//! let edit_mode = RwSignal::new(true);
 //!
 //! let on_rename = Callback::new(move |(id, new_title): (u64, String)| {
 //!     items.update(|list| {
@@ -147,7 +177,6 @@
 //! view! {
 //!     <WatchPage
 //!         items=items_sig
-//!         current_idx=current_idx
 //!         edit_mode=edit_mode
 //!         on_rename=on_rename
 //!         on_delete=on_delete
@@ -157,12 +186,13 @@
 //! # }
 //! ```
 //!
-//! ### Lower level: player + playlist side by side
+//! ### Lower level: you own the cursor
 //!
-//! [`WatchPage`] is a thin composition. If you want a different layout — a
-//! custom sidebar, a modal playlist, two players sharing one playlist — use
-//! [`MediaPlayer`] and [`Playlist`] directly. They share state purely through
-//! the signals you pass in.
+//! When you need to observe or drive the playback cursor — persist it, sync
+//! it to a URL query parameter, feed it to a third component — use
+//! [`MediaPlayer`] and [`Playlist`] directly and pass them a shared signal.
+//! The `lmp-watch` / `lmp-watch-main` classes give you the same responsive
+//! layout `WatchPage` uses, but you're free to swap in your own container.
 //!
 //! ```rust,no_run
 //! # use leptos::prelude::*;
@@ -173,11 +203,15 @@
 //! let current_idx = RwSignal::new(0usize);
 //! let edit_mode   = RwSignal::new(false);
 //!
+//! // The cursor is ours to observe…
+//! Effect::new(move |_| {
+//!     let _i = current_idx.get();
+//!     // e.g. persist, sync to URL, …
+//! });
+//!
 //! let items_sig = Signal::derive(move || items.get());
 //!
 //! view! {
-//!     // The `lmp-watch` / `lmp-watch-main` classes give you the same
-//!     // responsive layout WatchPage uses — feel free to swap in your own.
 //!     <div class="lmp-watch">
 //!         <div class="lmp-watch-main">
 //!             <MediaPlayer items=items_sig current_idx=current_idx/>
