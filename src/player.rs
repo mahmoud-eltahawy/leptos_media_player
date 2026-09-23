@@ -8,6 +8,7 @@ use leptos_use::{UseTimeoutFnReturn, use_document, use_event_listener, use_timeo
 use web_sys::{HtmlElement, KeyboardEvent, MouseEvent};
 
 use crate::MediaItem;
+use crate::style::stylesheet;
 
 mod handlers;
 mod shortcuts;
@@ -205,7 +206,7 @@ pub fn MediaPlayer(
     };
 
     view! {
-        {crate::style::stylesheet()}
+        {stylesheet()}
         <div
             node_ref=player_ref
             class="lmp-player"

@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 
-use crate::{MediaItem, MediaPlayer, Playlist};
+use crate::{MediaItem, MediaPlayer, Playlist, style::stylesheet};
 
 /// A ready-made watch page: [`MediaPlayer`] and [`Playlist`] composed in a
 /// YouTube-style layout — player on the left, playlist column on the right,
@@ -52,6 +52,7 @@ pub fn WatchPage(
     let title_for_playlist = playlist_title.clone();
 
     view! {
+        {stylesheet()}
         <div class="lmp-watch">
             <div class="lmp-watch-main">
                 <MediaPlayer
