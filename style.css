@@ -27,6 +27,8 @@
 }
 
 /* ─── Watch page layout ─────────────────────────────────────────────────── */
+/* Stacks vertically on phones and tablet portrait. Side-by-side only from
+   1024px up, where there is enough width for a video plus a sidebar. */
 
 .lmp-watch {
     display: flex;
@@ -39,12 +41,15 @@
 }
 
 .lmp-watch-main {
+    /* Fills the row and lets the flex child shrink below its intrinsic
+       size; without `min-width: 0` a wide video forces the whole row
+       wider than the parent. */
     flex: 1 1 auto;
     min-width: 0;
     width: 100%;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
     .lmp-watch {
         flex-direction: row;
         align-items: flex-start;
@@ -64,14 +69,12 @@
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--lmp-text);
+    width: 100%;
+    box-sizing: border-box;
 }
 
-/* Keyboard focus indicator. Only shows for keyboard-initiated focus
-   (`:focus-visible`), so mouse clicks don't paint a ring. */
-.lmp-player:focus-visible {
-    outline: 2px solid var(--lmp-accent);
-    outline-offset: 2px;
-}
+/* Suppress the default outline, then restore a keyboard-only ring. The
+   `:focus-visible` rule must come after `:focus` to win the cascade. */
 .lmp-player:focus {
     outline: none;
 }
@@ -81,8 +84,7 @@
 }
 
 /* Fullscreen: the container is the fullscreen element, so the controls
-   overlay stays visible (it lives outside the <video> but inside the
-   container). The video is stretched to fill the viewport height. */
+   overlay stays visible. The video fills the viewport height. */
 .lmp-player:fullscreen {
     border-radius: 0;
     box-shadow: none;
@@ -93,16 +95,21 @@
     max-height: 100vh;
     object-fit: contain;
 }
+.lmp-player:fullscreen .lmp-controls {
+    padding: 1.5rem;
+}
 
 .lmp-video {
     display: block;
     width: 100%;
     height: auto;
-    max-height: 60vh;
+    max-height: 50vh;
     object-fit: contain;
     cursor: pointer;
 }
-@media (min-width: 768px) { .lmp-video { max-height: 70vh; } }
+@media (min-width: 640px)  { .lmp-video { max-height: 60vh; } }
+@media (min-width: 1024px) { .lmp-video { max-height: 75vh; } }
+
 .lmp-video--audio { width: 100%; height: 0; pointer-events: none; }
 
 .lmp-artwork {
@@ -148,12 +155,13 @@
 }
 @media (min-width: 640px) { .lmp-controls { padding: 1.25rem; } }
 .lmp-controls--visible { opacity: 1; }
-.lmp-controls--hidden { opacity: 0; }
+.lmp-controls--hidden  { opacity: 0; }
 
 .lmp-controls-inner { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .lmp-controls-title {
-    font-size: 0.875rem;
+    /* Fluid title: smaller on phones, larger on wide screens. */
+    font-size: clamp(0.75rem, 0.7rem + 0.25vw, 1rem);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -219,20 +227,34 @@
 }
 .lmp-slider--volume { width: 4rem; }
 @media (min-width: 640px) { .lmp-slider--volume { width: 5rem; } }
+
+/* Below 480px the volume slider crowds the row; the mute button alone is
+   enough. Volume is still reachable via the keyboard once the slider is
+   back at wider widths, and via the OS on mobile. */
+@media (max-width: 479px) {
+    .lmp-slider--volume { display: none; }
+}
+
 .lmp-slider--seek { flex: 1; }
 
 /* ─── Seek row ─────────────────────────────────────────────────────────── */
 
 .lmp-seek { display: flex; align-items: center; gap: 0.5rem; }
-.lmp-time { font-size: 0.75rem; font-family: ui-monospace, monospace; }
+.lmp-time {
+    font-size: clamp(0.6875rem, 0.65rem + 0.25vw, 0.75rem);
+    font-family: ui-monospace, monospace;
+}
 
 /* ─── Icons ────────────────────────────────────────────────────────────── */
 
-.lmp-icon    { display: block; width: 1.25rem; height: 1.25rem; }
+.lmp-icon     { display: block; width: 1.25rem; height: 1.25rem; }
 .lmp-icon--sm { width: 1rem; height: 1rem; }
 .lmp-icon--lg { width: 1.5rem; height: 1.5rem; }
 
 /* ─── Playlist ─────────────────────────────────────────────────────────── */
+/* Full width while stacked; fixed-width sidebar once the watch layout goes
+   side-by-side at 1024px, then steps up as the viewport grows so the player
+   always has room. */
 
 .lmp-playlist {
     width: 100%;
@@ -241,9 +263,9 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--lmp-text);
 }
-@media (min-width: 768px)  { .lmp-playlist { width: 18rem; } }
-@media (min-width: 1024px) { .lmp-playlist { width: 20rem; } }
-@media (min-width: 1280px) { .lmp-playlist { width: 24rem; } }
+@media (min-width: 1024px) { .lmp-playlist { width: 18rem; } }
+@media (min-width: 1280px) { .lmp-playlist { width: 20rem; } }
+@media (min-width: 1536px) { .lmp-playlist { width: 24rem; } }
 
 .lmp-playlist-panel {
     background: var(--lmp-surface);
@@ -254,10 +276,11 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    max-height: 60vh;
+    max-height: 50vh;
     color: var(--lmp-text);
 }
-@media (min-width: 768px) { .lmp-playlist-panel { max-height: 500px; } }
+@media (min-width: 640px)  { .lmp-playlist-panel { max-height: 60vh; } }
+@media (min-width: 1024px) { .lmp-playlist-panel { max-height: 75vh; } }
 
 .lmp-playlist-header {
     padding: 0.75rem 1rem;
@@ -393,3 +416,25 @@
 .lmp-row:hover .lmp-row-action { opacity: 1; }
 .lmp-row-action:hover { color: var(--lmp-text); }
 .lmp-row-action--delete:hover { color: var(--lmp-danger); }
+
+/* ─── Touch and motion preferences ─────────────────────────────────────── */
+
+/* Larger tap targets on touch devices. The visual size of the icon stays
+   the same; only the padding grows, keeping the row compact enough for
+   dense playlists. */
+@media (pointer: coarse) {
+    .lmp-btn        { padding: 0.5rem; }
+    .lmp-row-action { padding: 0.5rem; opacity: 1; }
+}
+
+/* Honour the OS-level "reduce motion" preference: no hover transforms, no
+   control-fade transitions. */
+@media (prefers-reduced-motion: reduce) {
+    .lmp-btn,
+    .lmp-controls,
+    .lmp-row,
+    .lmp-row-action {
+        transition: none;
+    }
+    .lmp-btn:hover { transform: none; }
+}
