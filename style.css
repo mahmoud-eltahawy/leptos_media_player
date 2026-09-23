@@ -27,8 +27,6 @@
 }
 
 /* ─── Watch page layout ─────────────────────────────────────────────────── */
-/* The container that composes MediaPlayer + Playlist. Stacks vertically on
-   phones; side-by-side from 768px up (tablet landscape, laptop, desktop). */
 
 .lmp-watch {
     display: flex;
@@ -41,9 +39,6 @@
 }
 
 .lmp-watch-main {
-    /* Player column: fills whatever's left of the row and refuses to blow
-       out of the flex container. `min-width: 0` is the classic fix that
-       lets a flex child shrink below its intrinsic content size. */
     flex: 1 1 auto;
     min-width: 0;
     width: 100%;
@@ -69,6 +64,34 @@
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--lmp-text);
+}
+
+/* Keyboard focus indicator. Only shows for keyboard-initiated focus
+   (`:focus-visible`), so mouse clicks don't paint a ring. */
+.lmp-player:focus-visible {
+    outline: 2px solid var(--lmp-accent);
+    outline-offset: 2px;
+}
+.lmp-player:focus {
+    outline: none;
+}
+.lmp-player:focus-visible {
+    outline: 2px solid var(--lmp-accent);
+    outline-offset: 2px;
+}
+
+/* Fullscreen: the container is the fullscreen element, so the controls
+   overlay stays visible (it lives outside the <video> but inside the
+   container). The video is stretched to fill the viewport height. */
+.lmp-player:fullscreen {
+    border-radius: 0;
+    box-shadow: none;
+}
+.lmp-player:fullscreen .lmp-video {
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    object-fit: contain;
 }
 
 .lmp-video {

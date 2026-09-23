@@ -17,8 +17,11 @@ web-sys = { version = "0.3", features = [
     "Document",
     "Element",
     "Event",
+    "HtmlDivElement",
+    "HtmlElement",
     "HtmlInputElement",
     "HtmlVideoElement",
+    "KeyboardEvent",
     "MouseEvent",
 ] }
 serde = { version = "1", features = ["derive"] }

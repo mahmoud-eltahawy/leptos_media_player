@@ -29,6 +29,23 @@
 //! [`MediaPlayer`] + [`Playlist`] when you need to own or observe the cursor,
 //! or when the layout isn't the default.
 //!
+//! ## Keyboard shortcuts
+//!
+//! Click anywhere on the player (or Tab into it) to focus it, then:
+//!
+//! | Key            | Action                    |
+//! |----------------|---------------------------|
+//! | `Space`, `k`   | Toggle play / pause       |
+//! | `m`            | Toggle mute               |
+//! | `f`            | Toggle fullscreen         |
+//! | `←` / `→`      | Seek back / forward 5 s   |
+//! | `↑` / `↓`      | Volume up / down 5 %      |
+//! | `0` – `9`      | Jump to 0 % – 90 %        |
+//! | `Home` / `End` | Jump to start / end       |
+//!
+//! Shortcuts are scoped to the player — they never fire page-wide, and they
+//! stay out of the way while you type in a form field or nudge a slider.
+//!
 //! ## Styling
 //!
 //! All styles live in the crate's embedded stylesheet (injected automatically

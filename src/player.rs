@@ -2,7 +2,7 @@ use leptos::wasm_bindgen::JsCast;
 use leptos::{either::Either, ev::fullscreenchange};
 use leptos::{html, prelude::*};
 use leptos_use::{UseTimeoutFnReturn, use_document, use_event_listener, use_timeout_fn};
-use web_sys::{HtmlInputElement, MouseEvent};
+use web_sys::{HtmlElement, HtmlInputElement, KeyboardEvent, MouseEvent};
 
 use crate::icons::{
     FullscreenExitIcon, FullscreenIcon, MuteIcon, NextPageIcon, PauseIcon, PlayIcon, PrevPageIcon,
@@ -102,9 +102,18 @@ impl PlayerDerived {
 
 #[derive(Clone, Copy)]
 struct PlayerHandlers {
-    toggle_play: Callback<MouseEvent>,
-    toggle_mute: Callback<MouseEvent>,
-    toggle_fullscreen: Callback<MouseEvent>,
+    // Event-agnostic actions, shared by buttons and keyboard shortcuts.
+    toggle_play: Callback<()>,
+    toggle_mute: Callback<()>,
+    toggle_fullscreen: Callback<()>,
+    /// Seek by `delta` seconds (positive forward, negative backward).
+    seek_relative: Callback<f64>,
+    /// Nudge volume by `delta` (positive up, negative down), 0.0..=1.0.
+    nudge_volume: Callback<f64>,
+    /// Seek to `fraction` of duration (0.0..=1.0).
+    seek_to_fraction: Callback<f64>,
+
+    // Input-element callbacks — these need the concrete DOM event.
     handle_seek: Callback<web_sys::Event>,
     handle_volume: Callback<web_sys::Event>,
 }
@@ -150,11 +159,14 @@ fn install_src_reload_effect(
 }
 
 // ─── Handler factories ────────────────────────────────────────────────────
+// All factories below return `impl Fn(..) + Copy` so they can be wrapped in
+// `Callback::new(..)` and shared between click handlers and the keydown
+// dispatcher.
 
 fn make_toggle_play(
     video_ref: NodeRef<html::Video>,
     playing: RwSignal<bool>,
-) -> impl Fn(MouseEvent) + Copy {
+) -> impl Fn(()) + Copy {
     move |_| {
         if let Some(video) = video_ref.get() {
             if playing.get() {
@@ -165,6 +177,100 @@ fn make_toggle_play(
         }
     }
 }
+
+fn make_toggle_mute(
+    video_ref: NodeRef<html::Video>,
+    volume: RwSignal<f64>,
+    last_volume: RwSignal<f64>,
+    muted: RwSignal<bool>,
+) -> impl Fn(()) + Copy {
+    move |_| {
+        if let Some(video) = video_ref.get() {
+            if muted.get() {
+                video.set_muted(false);
+                let restore = last_volume.get().max(0.1);
+                video.set_volume(restore);
+                volume.set(restore);
+                muted.set(false);
+            } else {
+                last_volume.set(volume.get().max(0.1));
+                video.set_muted(true);
+                muted.set(true);
+            }
+        }
+    }
+}
+
+/// Toggle fullscreen on the player *container*, not on the video element.
+/// This is what keeps the controls overlay visible in fullscreen — the
+/// overlay lives outside the video but inside the container.
+fn make_toggle_fullscreen(player_ref: NodeRef<html::Div>) -> impl Fn(()) + Copy {
+    move |_| {
+        if let Some(el) = player_ref.get() {
+            if document().fullscreen_element().is_none() {
+                let _ = el.request_fullscreen();
+            } else {
+                document().exit_fullscreen();
+            }
+        }
+    }
+}
+
+fn make_seek_relative(
+    video_ref: NodeRef<html::Video>,
+    current_time: RwSignal<f64>,
+) -> impl Fn(f64) + Copy {
+    move |delta: f64| {
+        if let Some(video) = video_ref.get() {
+            let dur = video.duration();
+            if !dur.is_finite() || dur <= 0.0 {
+                return;
+            }
+            let new_time = (video.current_time() + delta).clamp(0.0, dur);
+            video.set_current_time(new_time);
+            current_time.set(new_time);
+        }
+    }
+}
+
+fn make_nudge_volume(
+    video_ref: NodeRef<html::Video>,
+    volume: RwSignal<f64>,
+    muted: RwSignal<bool>,
+    last_volume: RwSignal<f64>,
+) -> impl Fn(f64) + Copy {
+    move |delta: f64| {
+        if let Some(video) = video_ref.get() {
+            let new_vol = (video.volume() + delta).clamp(0.0, 1.0);
+            video.set_volume(new_vol);
+            video.set_muted(new_vol == 0.0);
+            volume.set(new_vol);
+            muted.set(new_vol == 0.0);
+            if new_vol > 0.0 {
+                last_volume.set(new_vol);
+            }
+        }
+    }
+}
+
+fn make_seek_to_fraction(
+    video_ref: NodeRef<html::Video>,
+    current_time: RwSignal<f64>,
+) -> impl Fn(f64) + Copy {
+    move |frac: f64| {
+        if let Some(video) = video_ref.get() {
+            let dur = video.duration();
+            if !dur.is_finite() || dur <= 0.0 {
+                return;
+            }
+            let new_time = (dur * frac.clamp(0.0, 1.0)).clamp(0.0, dur);
+            video.set_current_time(new_time);
+            current_time.set(new_time);
+        }
+    }
+}
+
+// ─── Input-element handler factories ──────────────────────────────────────
 
 fn make_handle_loaded_metadata(
     video_ref: NodeRef<html::Video>,
@@ -229,39 +335,23 @@ fn make_handle_volume(
     }
 }
 
-fn make_toggle_mute(
-    video_ref: NodeRef<html::Video>,
-    volume: RwSignal<f64>,
-    last_volume: RwSignal<f64>,
-    muted: RwSignal<bool>,
-) -> impl Fn(MouseEvent) + Copy {
-    move |_| {
-        if let Some(video) = video_ref.get() {
-            if muted.get() {
-                video.set_muted(false);
-                let restore = last_volume.get().max(0.1);
-                video.set_volume(restore);
-                volume.set(restore);
-                muted.set(false);
-            } else {
-                last_volume.set(volume.get().max(0.1));
-                video.set_muted(true);
-                muted.set(true);
-            }
-        }
-    }
-}
+// ─── Hotkey helpers ───────────────────────────────────────────────────────
 
-fn make_toggle_fullscreen(video_ref: NodeRef<html::Video>) -> impl Fn(MouseEvent) + Copy {
-    move |_| {
-        if let Some(video) = video_ref.get() {
-            if document().fullscreen_element().is_none() {
-                let _ = video.request_fullscreen();
-            } else {
-                document().exit_fullscreen();
-            }
-        }
+/// Hotkeys should not fire when the user is holding a browser/OS modifier,
+/// nor when the event target is a form field the user is typing in or
+/// nudging. Note: we deliberately do *not* skip `<button>` targets — if we
+/// did, `f` on a focused fullscreen button wouldn't work.
+fn should_ignore_hotkey(ev: &KeyboardEvent) -> bool {
+    if ev.ctrl_key() || ev.meta_key() || ev.alt_key() {
+        return true;
     }
+    let Some(target) = ev.target() else {
+        return false;
+    };
+    let Ok(el) = target.dyn_into::<HtmlElement>() else {
+        return false;
+    };
+    matches!(el.tag_name().as_str(), "INPUT" | "TEXTAREA" | "SELECT") || el.is_content_editable()
 }
 
 // ─── Public component ─────────────────────────────────────────────────────
@@ -270,6 +360,20 @@ fn make_toggle_fullscreen(video_ref: NodeRef<html::Video>) -> impl Fn(MouseEvent
 ///
 /// Pair it with a [`Playlist`](crate::Playlist) that shares the same
 /// `items` and `current_idx` signals — or use it standalone.
+///
+/// ## Keyboard shortcuts
+///
+/// Click anywhere on the player (or Tab to it) to focus it, then:
+///
+/// | Key            | Action                    |
+/// |----------------|---------------------------|
+/// | `Space`, `k`   | Toggle play / pause       |
+/// | `m`            | Toggle mute               |
+/// | `f`            | Toggle fullscreen         |
+/// | `←` / `→`      | Seek back / forward 5 s   |
+/// | `↑` / `↓`      | Volume up / down 5 %      |
+/// | `0` – `9`      | Jump to 0 % – 90 %        |
+/// | `Home` / `End` | Jump to start / end       |
 #[component]
 pub fn MediaPlayer(
     items: Signal<Vec<MediaItem>>,
@@ -277,6 +381,7 @@ pub fn MediaPlayer(
     #[prop(default = false)] audio: bool,
     #[prop(default = None)] artwork: Option<String>,
 ) -> impl IntoView {
+    let player_ref = NodeRef::<html::Div>::new();
     let video_ref = NodeRef::<html::Video>::new();
     let signals = PlayerSignals::new();
     let derived = PlayerDerived::build(items, current_idx, artwork.clone());
@@ -350,7 +455,15 @@ pub fn MediaPlayer(
             signals.last_volume,
             signals.muted,
         )),
-        toggle_fullscreen: Callback::new(make_toggle_fullscreen(video_ref)),
+        toggle_fullscreen: Callback::new(make_toggle_fullscreen(player_ref)),
+        seek_relative: Callback::new(make_seek_relative(video_ref, signals.current_time)),
+        nudge_volume: Callback::new(make_nudge_volume(
+            video_ref,
+            signals.volume,
+            signals.muted,
+            signals.last_volume,
+        )),
+        seek_to_fraction: Callback::new(make_seek_to_fraction(video_ref, signals.current_time)),
         handle_seek: Callback::new(make_handle_seek(video_ref, signals.current_time)),
         handle_volume: Callback::new(make_handle_volume(
             video_ref,
@@ -362,6 +475,78 @@ pub fn MediaPlayer(
 
     let handle_loaded_metadata = make_handle_loaded_metadata(video_ref, signals.duration);
     let handle_time_update = make_handle_time_update(video_ref, signals.current_time);
+
+    // ── Hotkey dispatcher ─────────────────────────────────────────────
+    let handle_keydown = move |ev: KeyboardEvent| {
+        if should_ignore_hotkey(&ev) {
+            return;
+        }
+        match ev.key().as_str() {
+            " " | "k" | "K" => {
+                ev.prevent_default();
+                handlers.toggle_play.run(());
+            }
+            "m" | "M" => {
+                ev.prevent_default();
+                handlers.toggle_mute.run(());
+            }
+            "f" | "F" => {
+                ev.prevent_default();
+                handlers.toggle_fullscreen.run(());
+            }
+            "ArrowLeft" => {
+                ev.prevent_default();
+                handlers.seek_relative.run(-5.0);
+            }
+            "ArrowRight" => {
+                ev.prevent_default();
+                handlers.seek_relative.run(5.0);
+            }
+            "ArrowUp" => {
+                ev.prevent_default();
+                handlers.nudge_volume.run(0.05);
+            }
+            "ArrowDown" => {
+                ev.prevent_default();
+                handlers.nudge_volume.run(-0.05);
+            }
+            "Home" => {
+                ev.prevent_default();
+                handlers.seek_to_fraction.run(0.0);
+            }
+            "End" => {
+                ev.prevent_default();
+                handlers.seek_to_fraction.run(1.0);
+            }
+            k if k.len() == 1 && k.as_bytes()[0].is_ascii_digit() => {
+                ev.prevent_default();
+                let pct = (k.as_bytes()[0] - b'0') as f64 / 10.0;
+                handlers.seek_to_fraction.run(pct);
+            }
+            _ => {}
+        }
+    };
+
+    // ── Click-to-focus ────────────────────────────────────────────────
+    // Safari doesn't focus `tabindex="0"` elements on click; Chrome/Firefox
+    // do. We do it explicitly for consistency, but skip interactive children
+    // so clicking the volume slider doesn't steal its focus.
+    let handle_player_click = move |ev: MouseEvent| {
+        let Some(target) = ev.target() else {
+            return;
+        };
+        let Ok(el) = target.dyn_into::<HtmlElement>() else {
+            return;
+        };
+        let interactive = el
+            .closest("button, input, select, textarea, a, [contenteditable]")
+            .ok()
+            .flatten()
+            .is_some();
+        if !interactive && let Some(container) = player_ref.get() {
+            let _ = container.focus();
+        }
+    };
 
     // ── Install contexts (must precede view!) ─────────────────────────
     PlayerSignals::provide(signals);
@@ -391,7 +576,11 @@ pub fn MediaPlayer(
     view! {
         {stylesheet()}
         <div
+            node_ref=player_ref
             class="lmp-player"
+            tabindex="0"
+            on:keydown=handle_keydown
+            on:click=handle_player_click
             on:mousemove={let show = show_controls.clone(); move |_| show()}
         >
             <video
@@ -556,7 +745,7 @@ fn PlayPauseButton() -> impl IntoView {
     view! {
         <button
             class="lmp-btn"
-            on:click=move |ev| handlers.toggle_play.run(ev)
+            on:click=move |_| handlers.toggle_play.run(())
             aria-label="Play or pause"
         >
             {move || if signals.playing.get() {
@@ -576,7 +765,7 @@ fn MuteButton() -> impl IntoView {
     view! {
         <button
             class="lmp-btn"
-            on:click=move |ev| handlers.toggle_mute.run(ev)
+            on:click=move |_| handlers.toggle_mute.run(())
             aria-label="Mute or unmute"
         >
             {move || if signals.muted.get() || signals.volume.get() == 0.0 {
@@ -596,7 +785,7 @@ fn FullscreenButton() -> impl IntoView {
     view! {
         <button
             class="lmp-btn"
-            on:click=move |ev| handlers.toggle_fullscreen.run(ev)
+            on:click=move |_| handlers.toggle_fullscreen.run(())
             aria-label="Toggle fullscreen"
         >
             {move || if signals.fullscreen.get() {
