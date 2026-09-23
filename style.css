@@ -210,9 +210,6 @@
 .lmp-icon--lg { width: 1.5rem; height: 1.5rem; }
 
 /* ─── Playlist ─────────────────────────────────────────────────────────── */
-/* Full-width while stacked; fixed-width sidebar once the watch layout goes
-   side-by-side at 768px. The width steps up as the viewport grows so the
-   player always has room. */
 
 .lmp-playlist {
     width: 100%;
@@ -283,7 +280,7 @@
     border-radius: var(--lmp-radius-sm);
     border: 1px solid transparent;
     cursor: pointer;
-    text-align: right;
+    text-align: start;
     transition: background-color 0.15s, border-color 0.15s;
     box-sizing: border-box;
 }

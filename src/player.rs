@@ -392,7 +392,6 @@ pub fn MediaPlayer(
         {stylesheet()}
         <div
             class="lmp-player"
-            dir="ltr"
             on:mousemove={let show = show_controls.clone(); move |_| show()}
         >
             <video
@@ -510,8 +509,8 @@ enum NavDirection {
 impl NavDirection {
     fn aria_label(self) -> &'static str {
         match self {
-            Self::Prev => "السابق",
-            Self::Next => "التالي",
+            Self::Prev => "Previous",
+            Self::Next => "Next",
         }
     }
 }
@@ -558,7 +557,7 @@ fn PlayPauseButton() -> impl IntoView {
         <button
             class="lmp-btn"
             on:click=move |ev| handlers.toggle_play.run(ev)
-            aria-label="تشغيل / إيقاف"
+            aria-label="Play or pause"
         >
             {move || if signals.playing.get() {
                 Either::Left(PauseIcon())
@@ -578,7 +577,7 @@ fn MuteButton() -> impl IntoView {
         <button
             class="lmp-btn"
             on:click=move |ev| handlers.toggle_mute.run(ev)
-            aria-label="كتم / إلغاء"
+            aria-label="Mute or unmute"
         >
             {move || if signals.muted.get() || signals.volume.get() == 0.0 {
                 Either::Left(MuteIcon())
@@ -598,7 +597,7 @@ fn FullscreenButton() -> impl IntoView {
         <button
             class="lmp-btn"
             on:click=move |ev| handlers.toggle_fullscreen.run(ev)
-            aria-label="ملء الشاشة"
+            aria-label="Toggle fullscreen"
         >
             {move || if signals.fullscreen.get() {
                 Either::Left(FullscreenExitIcon())

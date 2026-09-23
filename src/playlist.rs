@@ -56,7 +56,7 @@ pub fn Playlist(
         show_download,
     });
 
-    let title = title.unwrap_or_else(|| "قائمة التشغيل".to_string());
+    let title = title.unwrap_or_else(|| "Playlist".to_string());
 
     view! {
         {stylesheet()}
@@ -184,7 +184,7 @@ fn PlaylistItem(
                         class="lmp-row-arrow"
                         disabled=is_first
                         on:click=move |ev| on_move_click(ev, true)
-                        aria-label="نقل لأعلى"
+                        aria-label="Move up"
                     >
                         "▲"
                     </button>
@@ -193,7 +193,7 @@ fn PlaylistItem(
                         class="lmp-row-arrow"
                         disabled=is_last
                         on:click=move |ev| on_move_click(ev, false)
-                        aria-label="نقل لأسفل"
+                        aria-label="Move down"
                     >
                         "▼"
                     </button>
@@ -234,7 +234,7 @@ fn PlaylistItem(
                     href=download_src.clone()
                     download=download_name.clone()
                     class="lmp-row-action"
-                    aria-label="تحميل"
+                    aria-label="Download"
                     on:click=move |ev: web_sys::MouseEvent| ev.stop_propagation()
                 >
                     <DownloadIcon/>
@@ -246,7 +246,7 @@ fn PlaylistItem(
                     type="button"
                     class="lmp-row-action"
                     on:click=begin_edit
-                    aria-label="إعادة تسمية"
+                    aria-label="Rename"
                 >
                     <EditIcon/>
                 </button>
@@ -257,7 +257,7 @@ fn PlaylistItem(
                     type="button"
                     class="lmp-row-action lmp-row-action--delete"
                     on:click=on_delete_click
-                    aria-label="حذف"
+                    aria-label="Delete"
                 >
                     <DeleteIcon/>
                 </button>
