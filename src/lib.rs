@@ -262,6 +262,7 @@ mod icons;
 mod player;
 mod playlist;
 mod style;
+mod utils;
 mod watch_page;
 
 pub use player::MediaPlayer;
@@ -333,7 +334,7 @@ impl MediaItem {
 #[derive(Clone, Copy)]
 struct Bundle<T>(T);
 
-trait ContextBundle: Clone + Send + Sync + 'static {
+pub(crate) trait ContextBundle: Clone + Send + Sync + 'static {
     fn provide(self) {
         provide_context(Bundle(self));
     }
